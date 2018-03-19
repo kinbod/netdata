@@ -44,6 +44,8 @@ dist_pythonconfig_DATA = \
     python.d/go_expvar.conf \
     python.d/haproxy.conf \
     python.d/hddtemp.conf \
+    python.d/httpcheck.conf \
+    python.d/icecast.conf \
     python.d/ipfs.conf \
     python.d/isc_dhcpd.conf \
     python.d/mdstat.conf \
@@ -56,6 +58,7 @@ dist_pythonconfig_DATA = \
     python.d/ntpd.conf \
     python.d/ovpn_status_log.conf \
     python.d/phpfpm.conf \
+    python.d/portcheck.conf \
     python.d/postfix.conf \
     python.d/postgres.conf \
     python.d/powerdns.conf \
@@ -89,6 +92,7 @@ dist_healthconfig_DATA = \
     health.d/fping.conf \
     health.d/fronius.conf \
     health.d/haproxy.conf \
+    health.d/httpcheck.conf \
     health.d/ipc.conf \
     health.d/ipfs.conf \
     health.d/ipmi.conf \
@@ -104,6 +108,7 @@ dist_healthconfig_DATA = \
     health.d/netfilter.conf \
     health.d/nginx.conf \
     health.d/nginx_plus.conf \
+    health.d/portcheck.conf \
     health.d/postgres.conf \
     health.d/qos.conf \
     health.d/ram.conf \

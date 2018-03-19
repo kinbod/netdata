@@ -853,6 +853,75 @@ If no configuration is given, module will attempt to connect to hddtemp daemon o
 
 ---
 
+# httpcheck
+
+Module monitors remote http server for availability and response time.
+
+Following charts are drawn per job:
+
+1. **Response time** ms
+ * Time in 0.1 ms resolution in which the server responds.
+   If the connection failed, the value is missing.
+
+2. **Status** boolean
+ * Connection successful
+ * Unexpected content: No Regex match found in the response
+ * Unexpected status code: Do we get 500 errors?
+ * Connection failed: port not listening or blocked
+ * Connection timed out: host or port unreachable
+
+### configuration
+
+Sample configuration and their default values.
+
+```yaml
+server:
+  url: 'http://host:port/path'  # required
+  status_accepted:              # optional
+    - 200
+  timeout: 1                    # optional, supports decimals (e.g. 0.2)
+  update_every: 3               # optional
+  regex: 'REGULAR_EXPRESSION'   # optional, see https://docs.python.org/3/howto/regex.html
+  redirect: yes                 # optional
+```
+
+### notes
+
+ * The status chart is primarily intended for alarms, badges or for access via API.
+ * A system/service/firewall might block netdata's access if a portscan or
+   similar is detected.
+ * This plugin is meant for simple use cases. Currently, the accuracy of the
+   response time is low and should be used as reference only.
+
+---
+
+# icecast
+
+This module will monitor number of listeners for active sources. 
+
+**Requirements:**
+ * icecast version >= 2.4.0 
+
+It produces the following charts:
+
+1. **Listeners** in listeners
+ * source number
+
+### configuration
+
+Needs only `url` to server's `/status-json.xsl`
+
+Here is an example for remote server:
+
+```yaml
+remote:
+  url      : 'http://1.2.3.4:8443/status-json.xsl'
+```
+
+Without configuration, module attempts to connect to `http://localhost:8443/status-json.xsl`
+
+---
+
 # IPFS
 
 Module monitors [IPFS](https://ipfs.io) basic information.
@@ -1474,10 +1543,10 @@ Configuration is not needed.
 
 # ntpd
 
-Module monitors the system variables of the local `ntpd` daemon (optional incl. variables of the polled peers) using the NTP Control Message Protocol via UDP socket, similar to `ntpq`.
+Module monitors the system variables of the local `ntpd` daemon (optional incl. variables of the polled peers) using the NTP Control Message Protocol via UDP socket, similar to `ntpq`, the [standard NTP query program](http://doc.ntp.org/current-stable/ntpq.html).
 
 **Requirements:**
- * Version of `ntpd` must be 2.0+
+ * Version: `NTPv4`
  * Local interrogation allowed in `/etc/ntp.conf` (default):
 
 ```
@@ -1522,12 +1591,15 @@ update_every: 10
 host: 'localhost'
 port: '123'
 show_peers: yes
+# hide peers with source address in ranges 127.0.0.0/8 and 192.168.0.0/16
 peer_filter: '(127\..*)|(192\.168\..*)'
+# check for new/changed peers every 60 updates
+peer_rescan: 60
 ```
 
 Sample (multiple jobs):
 
-Note: `ntp.conf` on host `otherhost` must be configured to allow queries from our local host by including a line like `restrict <IP> nomodify notrap nopeer`.
+Note: `ntp.conf` on the host `otherhost` must be configured to allow queries from our local host by including a line like `restrict <IP> nomodify notrap nopeer`.
 
 ```yaml
 local:
@@ -1537,7 +1609,7 @@ otherhost:
     host: 'otherhost'
 ```
 
-If no configuration is given, module will attempt to connect to `ntpd` on `::1:123` or `127.0.0.1:123` and show charts for the systemvars. Use `show_peers: yes` to also show the charts for configured peers. Local peers (127.*) are hidden by default, use `peer_filter: ''` to show all.
+If no configuration is given, module will attempt to connect to `ntpd` on `::1:123` or `127.0.0.1:123` and show charts for the systemvars. Use `show_peers: yes` to also show the charts for configured peers. Local peers in the range `127.0.0.0/8` are hidden by default, use `peer_filter: ''` to show all peers.
 
 ---
 
@@ -1612,6 +1684,42 @@ local:
 ```
 
 Without configuration, module attempts to connect to `http://localhost/status`
+
+---
+
+# portcheck
+
+Module monitors a remote TCP service.
+
+Following charts are drawn per host:
+
+1. **Latency** ms
+ * Time required to connect to a TCP port.
+   Displays latency in 0.1 ms resolution. If the connection failed, the value is missing.
+
+2. **Status** boolean
+ * Connection successful
+ * Could not create socket: possible DNS problems
+ * Connection refused: port not listening or blocked
+ * Connection timed out: host or port unreachable
+
+
+### configuration
+
+```yaml
+server:
+  host: 'dns or ip'     # required
+  port: 22              # required
+  timeout: 1            # optional
+  update_every: 1       # optional
+```
+
+### notes
+
+ * The error chart is intended for alarms, badges or for access via API.
+ * A system/service/firewall might block netdata's access if a portscan or
+   similar is detected.
+ * Currently, the accuracy of the latency is low and should be used as reference only.
 
 ---
 
