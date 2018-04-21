@@ -480,6 +480,7 @@ static void get_netdata_configured_variables() {
     // ------------------------------------------------------------------------
 
     netdata_configured_host_prefix = config_get(CONFIG_SECTION_GLOBAL, "host access prefix", "");
+    verify_netdata_host_prefix();
 
     // --------------------------------------------------------------------
     // get KSM settings
@@ -1005,6 +1006,11 @@ int main(int argc, char **argv) {
     }
 #endif /* NETDATA_INTERNAL_CHECKS */
 
+    // get the max file limit
+    if(getrlimit(RLIMIT_NOFILE, &rlimit_nofile) != 0)
+        error("getrlimit(RLIMIT_NOFILE) failed");
+    else
+        info("resources control: allowed file descriptors: soft = %zu, max = %zu", rlimit_nofile.rlim_cur, rlimit_nofile.rlim_max);
 
     // fork, switch user, create pid file, set process priority
     if(become_daemon(dont_fork, user) == -1)

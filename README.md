@@ -31,18 +31,47 @@ netdata runs on **Linux**, **FreeBSD**, and **MacOS**.
 
 ## News
 
-`Dec 17th, 2017` - **[netdata v1.9.0 released!](https://github.com/firehol/netdata/releases)**
+`Mar 27th, 2018` - **[netdata v1.10.0 released!](https://github.com/firehol/netdata/releases)**
 
-A big release:
-
- - dashboard snapshots, for loading / saving selected time-frames
- - highlighted time-frames across all charts of the dashboard
- - IP access lists for filtering access to netdata
- - enhanced VMs and containers monitoring
- - auto-scaling of chart units
- - timezone conversion at the dashboard to allow comparing charts with server logs
- - python.d.plugin rewritten
- - dozens of more improvements, enhancements, features and compatibility fixes
+ - new web server, a lot faster and more secure
+ - updated all javascript libraries to their latest versions (fixed compatibility issues - now netdata chart can now be embedded on **Atlassian Confluence** pages and remain fully interactive!)
+ - new plugins:
+   - **BTRFS** (visualize BTRFS allocation with alarms)
+   - **bcache** (monitor hybrid setups HDD + SSD)
+   - **ceph**
+   - **nginx plus**
+   - **libreswan** (monitor the traffic of IPSEC tunnels)
+   - **traefik**
+   - **icecast**
+   - **ntpd**
+   - **httpcheck** (monitor any remote web server)
+   - **portcheck** (monitor any remote TCP port)
+   - **spring-boot** (monitor java spring-boot apps)
+   - **dnsdist**
+   - **Linux hugepages**
+ - improved plugins:
+   - **statsd**
+   - **web_log**
+   - **cgroups** for containers and VMs monitoring (netdata now supports **systemd-nspawn** and **kubernetes** - fixed security issue with `cgroup-network`)
+   - **Linux memory**
+   - **diskspace**
+   - **network interfaces**
+   - **postgres**
+   - **rabbitmq**
+   - **apps.plugin** (now it also tracks swap usage per process)
+   - **haproxy**
+   - **uptime**
+   - **ksm** (kernel memory debupper)
+   - **mdstat** (software raid)
+   - **elasticsearch**
+   - **apcupsd**
+   - **dhcpd**
+   - **fronius**
+   - **stiebeletron**
+ - new alarm notification methods
+   - **alerta**
+   - **IRC** (post on IRC channels)
+ - and dozens more improvements, enhancements, features and compatibility fixes
 
 ---
 
@@ -299,7 +328,7 @@ And you can extend it, by writing plugins that collect data from any source, usi
 This is a high level overview of netdata feature set and architecture.
 Click it to to interact with it (it has direct links to documentation).
 
-[![netdata-overview](https://user-images.githubusercontent.com/2662304/32415725-a4779606-c246-11e7-8985-2b350181aa27.png)](https://my-netdata.io/infographic.html)
+[![netdata-overview](https://user-images.githubusercontent.com/2662304/37909754-6c812a7c-3114-11e8-8673-0d1926a9793a.png)](https://my-netdata.io/infographic.html)
 
 ---
 

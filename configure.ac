@@ -4,7 +4,7 @@
 AC_PREREQ(2.60)
 
 define([VERSION_MAJOR], [1])
-define([VERSION_MINOR], [9])
+define([VERSION_MINOR], [10])
 define([VERSION_FIX], [1])
 define([VERSION_NUMBER], VERSION_MAJOR[.]VERSION_MINOR[.]VERSION_FIX)
 define([VERSION_SUFFIX], [_rolling])
@@ -153,6 +153,10 @@ AC_HEADER_MAJOR
 AC_HEADER_RESOLV
 
 AC_CHECK_HEADERS_ONCE([sys/prctl.h])
+AC_CHECK_HEADERS_ONCE([sys/vfs.h])
+AC_CHECK_HEADERS_ONCE([sys/statfs.h])
+AC_CHECK_HEADERS_ONCE([sys/statvfs.h])
+AC_CHECK_HEADERS_ONCE([sys/mount.h])
 
 if test "${enable_accept4}" != "no"; then
     AC_CHECK_FUNCS_ONCE(accept4)

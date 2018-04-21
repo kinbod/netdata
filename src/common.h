@@ -5,7 +5,6 @@
 #include <config.h>
 #endif
 
-
 // ----------------------------------------------------------------------------
 // system include files for all netdata C programs
 
@@ -75,8 +74,27 @@
 
 #include <sys/resource.h>
 #include <sys/socket.h>
+
+#ifdef HAVE_SYS_STAT_H
 #include <sys/stat.h>
+#endif
+
+#ifdef HAVE_SYS_VFS_H
+#include <sys/vfs.h>
+#endif
+
+#ifdef HAVE_SYS_STATFS_H
+#include <sys/statfs.h>
+#endif
+
+#ifdef HAVE_SYS_MOUNT_H
+#include <sys/mount.h>
+#endif
+
+#ifdef HAVE_SYS_STATVFS_H
 #include <sys/statvfs.h>
+#endif
+
 #include <sys/syscall.h>
 #include <sys/time.h>
 #include <sys/types.h>
@@ -323,6 +341,8 @@ extern int memory_file_save(const char *filename, void *mem, size_t size);
 
 extern int fd_is_valid(int fd);
 
+extern struct rlimit rlimit_nofile;
+
 extern int enable_ksm;
 
 extern int sleep_usec(usec_t usec);
@@ -331,6 +351,7 @@ extern char *fgets_trim_len(char *buf, size_t buf_size, FILE *fp, size_t *len);
 
 extern int processors;
 extern long get_system_cpus(void);
+extern int verify_netdata_host_prefix();
 
 extern pid_t pid_max;
 extern pid_t get_system_pid_max(void);
