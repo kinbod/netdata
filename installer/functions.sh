@@ -1,4 +1,5 @@
 # no shebang necessary - this is a library to be sourced
+# SPDX-License-Identifier: GPL-3.0+
 
 # make sure we have a UID
 [ -z "${UID}" ] && UID="$(id -u)"
@@ -158,6 +159,29 @@ pidof() {
         return $?
     fi
 }
+
+# -----------------------------------------------------------------------------
+# portable delete recursively interactively
+
+portable_deletedir_recursively_interactively() {
+    if [ ! -z "$1" -a -d "$1" ]
+        then
+        if [ "$(uname -s)" = "Darwin" ]
+        then
+            echo >&2
+            read >&2 -p "Press ENTER to recursively delete directory '$1' > "
+            echo >&2 "Deleting directory '$1' ..."
+            run rm -R "$1"
+        else
+            echo >&2
+            echo >&2 "Deleting directory '$1' ..."
+            run rm -I -R "$1"
+        fi
+    else
+        echo "Directory '$1' does not exist."
+    fi
+}
+
 
 # -----------------------------------------------------------------------------
 
@@ -436,7 +460,7 @@ issystemd() {
         ns="$(readlink /proc/${p}/ns/pid 2>/dev/null)"
 
         # if pid of systemd is in our namespace, it is systemd
-        [ ! -z "${myns}" && "${myns}" = "${ns}" ] && return 0
+        [ ! -z "${myns}" ] && [ "${myns}" = "${ns}" ] && return 0
     done
 
     # else, it is not systemd
@@ -478,7 +502,7 @@ install_non_systemd_init() {
             run update-rc.d netdata defaults && \
             run update-rc.d netdata enable && \
             return 0
-        elif [[ "${key}" =~ ^(amzn-201[567]|ol|CentOS release 6|Red Hat Enterprise Linux Server release 6|Scientific Linux CERN SLC release 6|CloudLinux Server release 6).* ]]
+        elif [[ "${key}" =~ ^(amzn-201[5678]|ol|CentOS release 6|Red Hat Enterprise Linux Server release 6|Scientific Linux CERN SLC release 6|CloudLinux Server release 6).* ]]
             then
             echo >&2 "Installing init.d file..."
             run cp system/netdata-init-d /etc/init.d/netdata && \
@@ -511,8 +535,16 @@ install_netdata_service() {
         if [ "${uname}" = "Darwin" ]
         then
 
-            echo >&2 "hm... I don't know how to install a startup script for MacOS X"
-            return 1
+            if [ -f "/Library/LaunchDaemons/com.github.netdata.plist" ]
+                then
+                echo >&2 "file '/Library/LaunchDaemons/com.github.netdata.plist' already exists."
+                return 0
+            else
+                echo >&2 "Installing MacOS X plist file..."
+                run cp system/netdata.plist /Library/LaunchDaemons/com.github.netdata.plist && \
+                run launchctl load /Library/LaunchDaemons/com.github.netdata.plist && \
+                return 0
+            fi
 
         elif [ "${uname}" = "FreeBSD" ]
         then
@@ -792,31 +824,20 @@ download_netdata_conf() {
 # -----------------------------------------------------------------------------
 # add netdata user and group
 
-NETDATA_ADDED_TO_DOCKER=0
-NETDATA_ADDED_TO_NGINX=0
-NETDATA_ADDED_TO_VARNISH=0
-NETDATA_ADDED_TO_HAPROXY=0
-NETDATA_ADDED_TO_ADM=0
-NETDATA_ADDED_TO_NSD=0
-NETDATA_ADDED_TO_PROXY=0
-NETDATA_ADDED_TO_SQUID=0
-NETDATA_ADDED_TO_CEPH=0
+NETDATA_WANTED_GROUPS="docker nginx varnish haproxy adm nsd proxy squid ceph nobody"
+NETDATA_ADDED_TO_GROUPS=""
 add_netdata_user_and_group() {
-    local homedir="${1}"
+    local homedir="${1}" g
 
     if [ ${UID} -eq 0 ]
         then
         portable_add_group netdata || return 1
         portable_add_user netdata "${homedir}"  || return 1
-        portable_add_user_to_group docker   netdata && NETDATA_ADDED_TO_DOCKER=1
-        portable_add_user_to_group nginx    netdata && NETDATA_ADDED_TO_NGINX=1
-        portable_add_user_to_group varnish  netdata && NETDATA_ADDED_TO_VARNISH=1
-        portable_add_user_to_group haproxy  netdata && NETDATA_ADDED_TO_HAPROXY=1
-        portable_add_user_to_group adm      netdata && NETDATA_ADDED_TO_ADM=1
-        portable_add_user_to_group nsd      netdata && NETDATA_ADDED_TO_NSD=1
-        portable_add_user_to_group proxy    netdata && NETDATA_ADDED_TO_PROXY=1
-        portable_add_user_to_group squid    netdata && NETDATA_ADDED_TO_SQUID=1
-        portable_add_user_to_group ceph     netdata && NETDATA_ADDED_TO_CEPH=1
+
+        for g in ${NETDATA_WANTED_GROUPS}
+        do
+            portable_add_user_to_group ${g} netdata && NETDATA_ADDED_TO_GROUPS="${NETDATA_ADDED_TO_GROUPS} ${g}"
+        done
 
         [ ~netdata = / ] && cat <<USERMOD
 

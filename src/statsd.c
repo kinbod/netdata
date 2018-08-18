@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0+
 #include "common.h"
 
 #define STATSD_CHART_PREFIX "statsd"
@@ -433,6 +434,13 @@ static inline LONG_DOUBLE statsd_parse_float(const char *v, LONG_DOUBLE def) {
     return value;
 }
 
+static inline LONG_DOUBLE statsd_parse_sampling_rate(const char *v) {
+    LONG_DOUBLE sampling_rate = statsd_parse_float(v, 1.0);
+    if(unlikely(isless(sampling_rate, 0.001))) sampling_rate = 0.001;
+    if(unlikely(isgreater(sampling_rate, 1.0))) sampling_rate = 1.0;
+    return sampling_rate;
+}
+
 static inline long long statsd_parse_int(const char *v, long long def) {
     long long value;
 
@@ -482,9 +490,9 @@ static inline void statsd_process_gauge(STATSD_METRIC *m, const char *value, con
     }
     else {
         if (unlikely(*value == '+' || *value == '-'))
-            m->gauge.value += statsd_parse_float(value, 1.0) / statsd_parse_float(sampling, 1.0);
+            m->gauge.value += statsd_parse_float(value, 1.0) / statsd_parse_sampling_rate(sampling);
         else
-            m->gauge.value = statsd_parse_float(value, 1.0) / statsd_parse_float(sampling, 1.0);
+            m->gauge.value = statsd_parse_float(value, 1.0);
 
         m->events++;
         m->count++;
@@ -502,7 +510,7 @@ static inline void statsd_process_counter_or_meter(STATSD_METRIC *m, const char 
         // magic loading of metric, without affecting anything
     }
     else {
-        m->counter.value += llrintl((LONG_DOUBLE) statsd_parse_int(value, 1) / statsd_parse_float(sampling, 1.0));
+        m->counter.value += llrintl((LONG_DOUBLE) statsd_parse_int(value, 1) / statsd_parse_sampling_rate(sampling));
 
         m->events++;
         m->count++;
@@ -529,14 +537,23 @@ static inline void statsd_process_histogram_or_timer(STATSD_METRIC *m, const cha
         // magic loading of metric, without affecting anything
     }
     else {
-        if (unlikely(m->histogram.ext->used == m->histogram.ext->size)) {
-            netdata_mutex_lock(&m->histogram.ext->mutex);
-            m->histogram.ext->size += statsd.histogram_increase_step;
-            m->histogram.ext->values = reallocz(m->histogram.ext->values, sizeof(LONG_DOUBLE) * m->histogram.ext->size);
-            netdata_mutex_unlock(&m->histogram.ext->mutex);
-        }
+        LONG_DOUBLE v = statsd_parse_float(value, 1.0);
+        LONG_DOUBLE sampling_rate = statsd_parse_sampling_rate(sampling);
+        if(unlikely(isless(sampling_rate, 0.01))) sampling_rate = 0.01;
+        if(unlikely(isgreater(sampling_rate, 1.0))) sampling_rate = 1.0;
 
-        m->histogram.ext->values[m->histogram.ext->used++] = statsd_parse_float(value, 1.0) / statsd_parse_float(sampling, 1.0);
+        long long samples = llrintl(1.0 / sampling_rate);
+        while(samples-- > 0) {
+
+            if(unlikely(m->histogram.ext->used == m->histogram.ext->size)) {
+                netdata_mutex_lock(&m->histogram.ext->mutex);
+                m->histogram.ext->size += statsd.histogram_increase_step;
+                m->histogram.ext->values = reallocz(m->histogram.ext->values, sizeof(LONG_DOUBLE) * m->histogram.ext->size);
+                netdata_mutex_unlock(&m->histogram.ext->mutex);
+            }
+
+            m->histogram.ext->values[m->histogram.ext->used++] = v;
+        }
 
         m->events++;
         m->count++;
@@ -586,8 +603,10 @@ static inline void statsd_process_set(STATSD_METRIC *m, const char *value) {
 // --------------------------------------------------------------------------------------------------------------------
 // statsd parsing
 
-static void statsd_process_metric(const char *name, const char *value, const char *type, const char *sampling) {
-    debug(D_STATSD, "STATSD: raw metric '%s', value '%s', type '%s', rate '%s'", name?name:"(null)", value?value:"(null)", type?type:"(null)", sampling?sampling:"(null)");
+static void statsd_process_metric(const char *name, const char *value, const char *type, const char *sampling, const char *tags) {
+    (void)tags;
+
+    debug(D_STATSD, "STATSD: raw metric '%s', value '%s', type '%s', sampling '%s', tags '%s'", name?name:"(null)", value?value:"(null)", type?type:"(null)", sampling?sampling:"(null)", tags?tags:"(null)");
 
     if(unlikely(!name || !*name)) return;
     if(unlikely(!type || !*type)) type = "m";
@@ -671,8 +690,8 @@ static inline size_t statsd_process(char *buffer, size_t size, int require_newli
 
     const char *s = buffer;
     while(*s) {
-        const char *name = NULL, *value = NULL, *type = NULL, *sampling = NULL;
-        char *name_end = NULL, *value_end = NULL, *type_end = NULL, *sampling_end = NULL;
+        const char *name = NULL, *value = NULL, *type = NULL, *sampling = NULL, *tags = NULL;
+        char *name_end = NULL, *value_end = NULL, *type_end = NULL, *sampling_end = NULL, *tags_end = NULL;
 
         s = name_end = (char *)statsd_parse_skip_up_to(name = s, ':', '|');
         if(name == name_end) {
@@ -687,8 +706,13 @@ static inline size_t statsd_process(char *buffer, size_t size, int require_newli
             s = type_end = (char *) statsd_parse_skip_up_to(type = ++s, '|', '@');
 
         if(likely(*s == '|' || *s == '@')) {
-            s = sampling_end = (char *) statsd_parse_skip_up_to(sampling = ++s, '\r', '\n');
+            s = sampling_end = (char *) statsd_parse_skip_up_to(sampling = ++s, '|', '#');
             if(*sampling == '@') sampling++;
+        }
+
+        if(likely(*s == '|' || *s == '#')) {
+            s = tags_end = (char *) statsd_parse_skip_up_to(tags = ++s, '|', '|');
+            if(*tags == '#') tags++;
         }
 
         // skip everything until the end of the line
@@ -708,6 +732,7 @@ static inline size_t statsd_process(char *buffer, size_t size, int require_newli
                 , statsd_parse_field_trim(value, value_end)
                 , statsd_parse_field_trim(type, type_end)
                 , statsd_parse_field_trim(sampling, sampling_end)
+                , statsd_parse_field_trim(tags, tags_end)
         );
     }
 
